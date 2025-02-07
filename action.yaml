@@ -14,6 +14,9 @@ inputs:
   openai-key:
     description: 'The OpenAI API key'
     required: true
+  openai-baseurl:
+    description: 'The base_url for the openai api'
+    required: false
   prompt:
     description: 'The prompt to use for the analysis.'
     required: false
@@ -61,6 +64,7 @@ runs:
       shell: bash
       env:
         OPENAI_API_KEY: ${{ inputs.openai-key }}
+        OPENAI_API_ROUTE: ${{ inputs.openai-baseurl }}
         MODEL: ${{ inputs.model }}
         PROMPT: ${{ inputs.prompt }}
         MAX_LENGTH: ${{ inputs.max-length }}
