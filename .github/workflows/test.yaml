@@ -7,11 +7,11 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      # - name: Check if on test branch
-      #   if: github.ref != 'refs/heads/test'
-      #   run: |
-      #     echo "Not on test branch, stopping job."
-      #     exit 1
+      - name: Check if on test branch
+        if: github.ref == 'refs/heads/results'
+        run: |
+          echo "Not on test branch, stopping job."
+          exit 1
       - uses: actions/checkout@v3
       - name: Get the first new or changed file
         id: get_file
