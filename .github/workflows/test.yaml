@@ -1,0 +1,35 @@
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # - name: Check if on test branch
+      #   if: github.ref != 'refs/heads/test'
+      #   run: |
+      #     echo "Not on test branch, stopping job."
+      #     exit 1
+      - uses: actions/checkout@v3
+      - name: Get the first new or changed file
+        id: get_file
+        run: |
+          FILE=$(git diff --name-only HEAD^ HEAD | head -n 1)
+          # CONTENT=$(cat $FILE)
+          echo "file=$FILE" >> $GITHUB_OUTPUT
+          # echo "content<<EOF" >> $GITHUB_OUTPUT
+          # echo "$CONTENT" >> $GITHUB_OUTPUT
+          # echo "EOF" >> $GITHUB_OUTPUT
+      - name: Print file and content
+        run: |
+          echo "File: ${{ steps.get_file.outputs.file }}"
+          # echo "Content: ${{ steps.get_file.outputs.content }}"
+      - uses: ./
+        with:
+          openai-key: ${{ secrets.OPENAI_API_KEY }}
+          openai-baseurl: ${{ secrets.OPENAI_API_ROUTE }}
+          prompt: "Process the following file:\n > ${{ steps.get_file.outputs.file }}"
+          file: ${{ steps.get_file.outputs.file }}
+          model: 'qwen2.5-72b-instruct'

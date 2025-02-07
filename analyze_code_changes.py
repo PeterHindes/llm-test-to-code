@@ -22,36 +22,24 @@ if not os.environ.get("OPENAI_API_KEY"):
     sys.exit(1)
 
 global client
-if not os.environ.get("OPENAI_API_ROUTE"):
-    print("No custom route found")
-    client = openai.OpenAI(api_key= os.environ.get("OPENAI_API_KEY"), base_url= os.environ.get("OPENAI_API_ROUTE"))
+if not os.environ.get("OPENAI_API_BASEURL"):
+    client = openai.OpenAI(api_key= os.getenv("OPENAI_API_KEY"))
 else:
-    client = openai.OpenAI(api_key= os.environ.get("OPENAI_API_KEY"))
+    client = openai.OpenAI(api_key= os.getenv("OPENAI_API_KEY"), base_url= os.getenv("OPENAI_API_ROUTE"))
 
 model_engine = os.environ["MODEL"]
-commit_title = os.environ["COMMIT_TITLE"]
-commit_message = os.environ["COMMIT_BODY"]
-max_length = int(os.environ["MAX_LENGTH"])
 
-# Analyze the code changes with OpenAI
-code = sys.stdin.read()
-header = (f"Commit title is '{commit_title}'\n"
-          f"and commit message is '{commit_message}'\n")
-prompt = os.environ["PROMPT"] + "\nCode of commit is:\n```\n" + code + "\n```"
-if len(prompt) > max_length:
-    print(f"Prompt too long for OpenAI: {len(prompt)} characters, "
-          f"sending only first {max_length} characters")
-    prompt = prompt[:max_length]
-
-kwargs = {'model': model_engine}
-kwargs['temperature'] = 0.5
-kwargs['max_tokens'] = 1024
-kwargs['messages'] = [
-    {"role": "system",
-     "content": "You are a helpful assistant and code reviewer."},
-    {"role": "assistant", "content": "You are code reviewer for a project."},
-    {"role": "user", "content": prompt},
-]
+prompt = os.getenv("PROMPT")
+with open(os.getenv("FILE"), "r") as f:
+    prompt+= f"\n{f.read()}"
+print(f"Prompt: {prompt}")
+kwargs = {
+    'model': model_engine,
+    'messages': [
+        {"role": "system", "content": "You are a helpful assistant and code reviewer. Explain the changes in the code and suggest improvements."},
+        {"role": "user", "content": prompt},
+    ]
+}
 try:
     response = client.chat.completions.create(**kwargs)
     if response.choices:
@@ -61,4 +49,6 @@ try:
 except Exception as e:
     review_text = f"OpenAI failed to generate a review: {e}"
 
-print(f"{review_text}")
+print(f"Response>\n{review_text}")
+with open("review.txt", "w") as f:
+    f.write(review_text)

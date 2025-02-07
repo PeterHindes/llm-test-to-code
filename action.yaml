@@ -1,6 +1,6 @@
 # action.yaml
-name: 'OpenAI Code review Github Action'
-author: Sagi (Sergey) Shnaidman (@sshnaidm)
+name: 'LLM Code Agent'
+author: Peter Hindes (@PeterHindes)
 description: 'A Github Action that posts code review from OpenAI to pull request'
 inputs:
   github-token:
@@ -22,14 +22,9 @@ inputs:
     required: false
     default: |
       Please review the code change below and provide feedback.
-  post-if-error:
-    description: 'Whether to post a comment if there was an error'
-    required: false
-    default: 'true'
-  max-length:
-    description: 'Maximum number of characters to submit to OpenAI'
-    required: false
-    default: 4000
+  file:
+    description: 'The file to analyze'
+    required: true
 
 outputs:
   results:
@@ -57,20 +52,17 @@ runs:
     - name: Run OpenAI code review
       id: openai
       run: |
-        git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | python ${{ github.action_path }}/analyze_code_changes.py > review.txt
-        echo 'reviewresult<<EOF' >> $GITHUB_OUTPUT
+        python ${{ github.action_path }}/analyze_code_changes.py # >> $GITHUB_OUTPUT
+        echo 'result<<EOF' >> $GITHUB_OUTPUT
         echo "$(cat review.txt)" >> $GITHUB_OUTPUT
         echo 'EOF' >> $GITHUB_OUTPUT
       shell: bash
       env:
         OPENAI_API_KEY: ${{ inputs.openai-key }}
-        OPENAI_API_ROUTE: ${{ inputs.openai-baseurl }}
+        OPENAI_API_BASEURL: ${{ inputs.openai-baseurl }}
         MODEL: ${{ inputs.model }}
         PROMPT: ${{ inputs.prompt }}
-        MAX_LENGTH: ${{ inputs.max-length }}
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-        COMMIT_TITLE: ${{ github.event.pull_request.title }}
-        COMMIT_BODY: ${{ github.event.pull_request.body }}
+        FILE: ${{ inputs.file }}
 
     - name: Show output in case of failure
       id: err-output
@@ -81,15 +73,30 @@ runs:
         echo 'EOF' >> $GITHUB_OUTPUT
         echo "Review result and error: $(cat review.txt)"
       shell: bash
+    
+    - name: Debug Output
+      run: cat review.txt
+      shell: bash
 
-    - name: Create comment
-      if: success() || (inputs.post-if-error && inputs.post-if-error != 'false')
-      uses: peter-evans/create-or-update-comment@v3
+
+    - name: Checkout target branch
+      uses: actions/checkout@v4
       with:
-        issue-number: ${{ github.event.pull_request.number }}
-        body: |
-          ${{ steps.openai.outputs.reviewresult && steps.openai.outputs.reviewresult || steps.err-output.outputs.errorresult }}
-        reactions: '+1'
+        ref: results
+        fetch-depth: 0
+
+    - name: Save review result to file
+      if: success()
+      run: |
+        echo "${{ steps.openai.outputs.reviewresult }}" > review_result.txt
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add review_result.txt
+        git commit -m "Add code review result"
+        git push origin results
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 branding:
   icon: 'user-check'
