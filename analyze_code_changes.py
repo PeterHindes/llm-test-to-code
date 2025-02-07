@@ -21,7 +21,12 @@ if not os.environ.get("OPENAI_API_KEY"):
     print("No OpenAI API key found")
     sys.exit(1)
 
-client = openai.OpenAI()
+global client
+if not os.environ.get("OPENAI_API_ROUTE"):
+    print("No custom route found")
+    client = openai.OpenAI(api_key= os.environ.get("OPENAI_API_KEY"), base_url= os.environ.get("OPENAI_API_ROUTE"))
+else:
+    client = openai.OpenAI(api_key= os.environ.get("OPENAI_API_KEY"))
 
 model_engine = os.environ["MODEL"]
 commit_title = os.environ["COMMIT_TITLE"]
